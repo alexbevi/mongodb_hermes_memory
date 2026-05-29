@@ -118,7 +118,7 @@ class LLMExtractor:
                     {"role": "user", "content": _serialise_compact(compacted)},
                 ]
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("LLM extraction failed: %s", exc)
             return []
 

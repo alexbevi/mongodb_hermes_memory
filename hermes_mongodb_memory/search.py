@@ -24,7 +24,7 @@ from typing import Any
 from pymongo.errors import OperationFailure, PyMongoError
 
 from .embeddings import EmbeddingClient, NullEmbeddingClient
-from .store import MEMORIES, MongoStore, normalize_entity, utcnow
+from .store import MongoStore, normalize_entity, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ _RRF_K = 60
 def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
     if not a or not b:
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     na = math.sqrt(sum(x * x for x in a)) or 1e-12
     nb = math.sqrt(sum(y * y for y in b)) or 1e-12
     return dot / (na * nb)
@@ -343,6 +343,6 @@ class HybridSearcher:
         created = doc.get("created_at")
         if created is None:
             return doc
-        weight = self._store.time_decay_weight(created if hasattr(created, "tzinfo") else created, self._half_life)
+        weight = self._store.time_decay_weight(created, self._half_life)
         doc["score"] = float(doc.get("score", 0.0)) * weight
         return doc

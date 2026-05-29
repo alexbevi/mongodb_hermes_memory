@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import datetime as dt
-import time
 
 import pytest
 
 from hermes_mongodb_memory.store import (
-    MEMORIES,
-    TURNS,
     MongoStore,
     normalize_entity,
     utcnow,

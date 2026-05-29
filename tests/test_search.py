@@ -8,7 +8,7 @@ import pytest
 
 from hermes_mongodb_memory.embeddings import NullEmbeddingClient
 from hermes_mongodb_memory.search import HybridSearcher, _cosine
-from hermes_mongodb_memory.store import MongoStore, utcnow
+from hermes_mongodb_memory.store import utcnow
 
 
 class StubEmbedder:
@@ -67,7 +67,7 @@ def test_portable_search_filters_by_entities(store):
 
 def test_portable_search_filters_by_min_trust(store):
     mid_high = store.add_memory("very trusted", category="fact")
-    mid_low = store.add_memory("untrusted", category="fact")
+    store.add_memory("untrusted", category="fact")
     # bump one's trust
     for _ in range(10):
         store.record_feedback(mid_high, helpful=True)

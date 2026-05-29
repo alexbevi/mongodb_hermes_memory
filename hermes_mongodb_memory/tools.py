@@ -23,7 +23,7 @@ from typing import Any
 
 from .embeddings import EmbeddingClient, NullEmbeddingClient
 from .search import HybridSearcher
-from .store import VALID_CATEGORIES, MongoStore, normalize_entity
+from .store import VALID_CATEGORIES, MongoStore
 
 logger = logging.getLogger(__name__)
 
@@ -223,7 +223,7 @@ class ToolDispatcher:
             return _tool_error(f"missing required argument: {exc.args[0]}")
         except ValueError as exc:
             return _tool_error(str(exc))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("tool %s failed: %s", name, exc, exc_info=True)
             return _tool_error(f"{name} failed: {exc}")
 
@@ -243,7 +243,7 @@ class ToolDispatcher:
             try:
                 embedding = self._embedder.embed(content)
                 embedding_model = self._embedder.model
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("embedding failed; storing without vector: %s", exc)
 
         memory_id = self._store.add_memory(
@@ -298,7 +298,7 @@ class ToolDispatcher:
         ok = self._store.remove_memory(memory_id)
         return json.dumps({"status": "removed" if ok else "not_found", "memory_id": memory_id})
 
-    def _handle_profile(self, args: dict[str, Any]) -> str:  # noqa: ARG002
+    def _handle_profile(self, args: dict[str, Any]) -> str:
         prefs = self._store.list_memories(category="user_pref", limit=10)
         projects = self._store.list_memories(category="project", limit=10)
         decisions = self._store.list_memories(category="decision", limit=5)
@@ -335,7 +335,7 @@ def _serialise(doc: Mapping[str, Any]) -> dict[str, Any]:
     }
     if "score" in doc:
         out["score"] = float(doc["score"])
-    if "score_components" in doc and doc["score_components"]:
+    if doc.get("score_components"):
         out["score_components"] = dict(doc["score_components"])
     if "created_at" in doc:
         ca = doc["created_at"]

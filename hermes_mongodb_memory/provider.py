@@ -127,7 +127,7 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
                 "tenant_id": self._tenant_id,
                 "memories": self._store.count_memories(),
             }
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("post_setup connectivity check failed: %s", exc)
             return {"ok": False, "reason": str(exc)}
         finally:
@@ -183,7 +183,7 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
         try:
             if self._client is not None:
                 self._client.close()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("MongoDB client close failed: %s", exc)
         self._client = None
         self._db = None
@@ -199,7 +199,7 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
             return ""
         try:
             count = self._store.count_memories()
-        except Exception:  # noqa: BLE001
+        except Exception:
             count = 0
         if count == 0:
             return (
@@ -250,7 +250,7 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
             with self._prefetch_lock:
                 self._prefetch_result = text
             self._record_success()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._record_failure()
             logger.debug("prefetch failed: %s", exc)
 
@@ -299,7 +299,7 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
                             content=assistant_content, ttl_days=ttl_days,
                         )
                 self._record_success()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 self._record_failure()
                 logger.warning("MongoDB sync_turn failed: %s", exc)
 
@@ -332,7 +332,7 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
                     source="auto_extract",
                     session_id=self._session_id,
                 )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.debug("auto-extract add_memory failed: %s", exc)
 
     # ------------------------------------------------------------------ session-switch
@@ -341,8 +341,8 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
         self,
         new_session_id: str,
         *,
-        parent_session_id: str = "",  # noqa: ARG002
-        reset: bool = False,  # noqa: ARG002
+        parent_session_id: str = "",
+        reset: bool = False,
         **kwargs: Any,
     ) -> None:
         with self._prefetch_lock:
@@ -369,12 +369,12 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
                 session_id=self._session_id,
                 metadata=dict(metadata or {}),
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.debug("mirror add_memory failed: %s", exc)
 
     # ------------------------------------------------------------------ pre-compress
 
-    def on_pre_compress(self, messages: list[dict[str, Any]]) -> str:  # noqa: ARG002
+    def on_pre_compress(self, messages: list[dict[str, Any]]) -> str:
         if self._store is None:
             return ""
         try:

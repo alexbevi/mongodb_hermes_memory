@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from hermes_mongodb_memory.extraction import (
-    ExtractedMemory,
     LLMExtractor,
     RegexExtractor,
     _parse_llm_payload,

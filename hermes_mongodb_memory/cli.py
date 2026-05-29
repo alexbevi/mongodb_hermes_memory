@@ -107,7 +107,7 @@ def _cmd_doctor() -> int:
     try:
         try:
             provider._client.admin.command("ping")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             issues.append(f"ping failed: {exc}")
 
         memory_indexes = {i["name"] for i in provider._store.memories.list_indexes()}

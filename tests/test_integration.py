@@ -1,4 +1,4 @@
-"""End-to-end integration tests against a real MongoDB.
+r"""End-to-end integration tests against a real MongoDB.
 
 Gated by ``MONGODB_TEST_URI``. To run locally:
 
@@ -13,7 +13,6 @@ These exercise the actual Mongo aggregation pipeline (text search, TTL,
 from __future__ import annotations
 
 import json
-import time
 
 import pytest
 

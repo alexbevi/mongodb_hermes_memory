@@ -6,10 +6,7 @@ import argparse
 import json
 from unittest.mock import patch
 
-import pytest
-
 from hermes_mongodb_memory import cli
-from hermes_mongodb_memory.provider import MongoDBMemoryProvider
 
 
 class FakeClient:

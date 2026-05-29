@@ -32,7 +32,7 @@ class NullEmbeddingClient:
     model = ""
     dim = 0
 
-    def embed(self, text: str) -> list[float]:  # noqa: ARG002
+    def embed(self, text: str) -> list[float]:
         return []
 
     def embed_many(self, texts: list[str]) -> list[list[float]]:
