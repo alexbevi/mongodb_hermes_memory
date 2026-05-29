@@ -401,5 +401,9 @@ class MongoStore:
     def time_decay_weight(self, created_at: dt.datetime, half_life_days: float) -> float:
         if half_life_days <= 0:
             return 1.0
+        # mongomock strips tzinfo; normalise both sides to be UTC-aware so the
+        # subtraction always succeeds.
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=dt.timezone.utc)
         age_days = max(0.0, (utcnow() - created_at).total_seconds() / 86400.0)
         return math.exp(-math.log(2.0) * age_days / half_life_days)
