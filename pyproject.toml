@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-mongodb-memory"
+version = "0.1.0"
+description = "MongoDB memory provider plugin for Hermes Agent — hybrid search, time-decay, TTL forgetting, and entity graph traversal in a single backend."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Alex Bevilacqua" }]
+keywords = ["hermes", "hermes-agent", "memory", "mongodb", "atlas", "vector-search", "rag"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Database",
+]
+dependencies = [
+    "pymongo>=4.6,<5.0",
+    "PyYAML>=6.0,<7.0",
+]
+
+[project.optional-dependencies]
+openai = ["openai>=1.30,<2.0"]
+voyage = ["voyageai>=0.2,<1.0"]
+all = [
+    "openai>=1.30,<2.0",
+    "voyageai>=0.2,<1.0",
+]
+dev = [
+    "pytest>=8.0,<9.0",
+    "pytest-cov>=5.0,<7.0",
+    "mongomock>=4.1,<5.0",
+    "ruff>=0.5,<1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/alexbevi/hermes-mongodb-memory"
+Issues = "https://github.com/alexbevi/hermes-mongodb-memory/issues"
+"Hermes Agent" = "https://hermes-agent.nousresearch.com"
+
+# Hermes discovers plugins via filesystem scan of plugin directories,
+# but we also publish a hermes.memory_providers entry point so future
+# entry-point-based discovery just works.
+[project.entry-points."hermes.memory_providers"]
+mongodb = "hermes_mongodb_memory:register"
+
+[tool.setuptools]
+packages = ["hermes_mongodb_memory"]
+
+[tool.setuptools.package-data]
+hermes_mongodb_memory = ["plugin.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: requires a real MongoDB (set MONGODB_TEST_URI)",
+]
+addopts = "-ra"
+
+[tool.coverage.run]
+branch = true
+source = ["hermes_mongodb_memory"]
+
+[tool.coverage.report]
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "RUF"]
+ignore = ["E501"]
