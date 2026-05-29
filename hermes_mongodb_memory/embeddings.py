@@ -103,6 +103,9 @@ def make_embedding_client(config: dict) -> EmbeddingClient:
     """Construct the embedding client described by ``config``.
 
     Returns :class:`NullEmbeddingClient` when no provider is configured.
+    Falls back to the null client (with a warning) on misconfiguration so
+    a missing API key disables vector search rather than crashing the
+    plugin — the doctor subcommand surfaces this condition explicitly.
     """
     provider = (config.get("embedding_provider") or "none").strip().lower()
     if provider == "none":
@@ -112,9 +115,14 @@ def make_embedding_client(config: dict) -> EmbeddingClient:
     model = config.get("embedding_model", "") or ""
     dim = config.get("embedding_dim", 0) or 0
 
-    if provider == "openai":
-        return OpenAIEmbeddingClient(api_key=api_key, model=model or "text-embedding-3-small", dim=dim or 1536)
-    if provider == "voyage":
-        return VoyageEmbeddingClient(api_key=api_key, model=model or "voyage-3", dim=dim or 1024)
+    try:
+        if provider == "openai":
+            return OpenAIEmbeddingClient(api_key=api_key, model=model or "text-embedding-3-small", dim=dim or 1536)
+        if provider == "voyage":
+            return VoyageEmbeddingClient(api_key=api_key, model=model or "voyage-3", dim=dim or 1024)
+    except (ValueError, RuntimeError) as exc:
+        logger.warning("embedding provider %r unusable, falling back to BM25-only: %s", provider, exc)
+        return NullEmbeddingClient()
 
-    raise ValueError(f"unknown embedding_provider: {provider!r}")
+    logger.warning("unknown embedding_provider: %r — falling back to BM25-only", provider)
+    return NullEmbeddingClient()

@@ -27,9 +27,16 @@ def test_make_embedding_client_explicit_none_is_null():
     assert isinstance(c, embeddings.NullEmbeddingClient)
 
 
-def test_unknown_provider_raises():
-    with pytest.raises(ValueError):
-        embeddings.make_embedding_client({"embedding_provider": "weirdvec"})
+def test_unknown_provider_falls_back_to_null():
+    c = embeddings.make_embedding_client({"embedding_provider": "weirdvec"})
+    assert isinstance(c, embeddings.NullEmbeddingClient)
+
+
+def test_missing_api_key_falls_back_to_null():
+    c = embeddings.make_embedding_client(
+        {"embedding_provider": "openai", "embedding_api_key": "", "embedding_dim": 128}
+    )
+    assert isinstance(c, embeddings.NullEmbeddingClient)
 
 
 def test_openai_client_requires_api_key(monkeypatch):
