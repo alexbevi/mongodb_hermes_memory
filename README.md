@@ -67,7 +67,8 @@ hermes mongodb init-indexes
 git clone https://github.com/alexbevi/hermes-mongodb-memory.git
 cd hermes-mongodb-memory
 pip install -e ".[dev,all]"
-ln -s "$(pwd)" ~/.hermes/plugins/mongodb       # Hermes auto-discovers it
+# Hermes auto-discovers plugins in ~/.hermes/plugins/<name>/
+ln -s "$(pwd)/hermes_mongodb_memory" ~/.hermes/plugins/mongodb
 docker compose up -d                            # local Mongo 7 replica set
 export HERMES_MONGODB_URI="mongodb://localhost:27017/?replicaSet=rs0"
 ```

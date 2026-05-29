@@ -13,8 +13,9 @@ import pytest
 import yaml
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
-PACKAGE_INIT = PLUGIN_ROOT / "hermes_mongodb_memory" / "__init__.py"
-PLUGIN_YAML = PLUGIN_ROOT / "plugin.yaml"
+PACKAGE_DIR = PLUGIN_ROOT / "hermes_mongodb_memory"
+PACKAGE_INIT = PACKAGE_DIR / "__init__.py"
+PLUGIN_YAML = PACKAGE_DIR / "plugin.yaml"
 
 
 def test_init_contains_discovery_markers():

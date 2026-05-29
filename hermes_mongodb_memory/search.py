@@ -106,6 +106,25 @@ class HybridSearcher:
         limit: int,
     ) -> list[dict[str, Any]]:
         """$rankFusion over $vectorSearch + $search; requires Atlas 8.1+."""
+        pipeline = self.build_atlas_pipeline(
+            query, category=category, entities=entities, min_trust=min_trust, limit=limit
+        )
+        return list(self._store.memories.aggregate(pipeline))
+
+    def build_atlas_pipeline(
+        self,
+        query: str,
+        *,
+        category: str | None = None,
+        entities: Sequence[str] = (),
+        min_trust: float = 0.0,
+        limit: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Construct the Atlas $rankFusion pipeline without executing it.
+
+        Split from :meth:`search_atlas` so tests can verify the pipeline
+        shape (filters, weights, decay stage) without an Atlas cluster.
+        """
         match_stage: dict[str, Any] = {"tenant_id": self._store.tenant_id}
         if category:
             match_stage["category"] = category
@@ -153,14 +172,12 @@ class HybridSearcher:
                 "combination": {"weights": weights},
             }
         }
-
-        pipeline: list[dict[str, Any]] = [
+        return [
             rank_fusion,
             self._decay_stage(),
             {"$sort": {"score": -1}},
             {"$limit": int(limit)},
         ]
-        return list(self._store.memories.aggregate(pipeline))
 
     def _fusion_weights(self, pipelines: dict[str, list[dict[str, Any]]]) -> dict[str, float]:
         if "vector" in pipelines:

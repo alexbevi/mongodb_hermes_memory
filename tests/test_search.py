@@ -148,6 +148,94 @@ def test_search_returns_empty_when_nothing_matches(store):
     assert s.search("zzzz nothing") == []
 
 
+def test_build_atlas_pipeline_text_only_when_no_embedder(store):
+    s = HybridSearcher(store, NullEmbeddingClient(), time_decay_half_life_days=0)
+    pipeline = s.build_atlas_pipeline("dark mode", limit=5)
+    rank_fusion = pipeline[0]["$rankFusion"]
+    assert set(rank_fusion["input"]["pipelines"].keys()) == {"text"}
+    assert rank_fusion["combination"]["weights"] == {"text": 1.0}
+    # Final stages: decay -> sort -> limit
+    assert pipeline[-2] == {"$sort": {"score": -1}}
+    assert pipeline[-1] == {"$limit": 5}
+
+
+def test_build_atlas_pipeline_includes_vector_when_embedding_present(store):
+    embedder = StubEmbedder({"dark mode": [1.0, 0.0, 0.0]})
+    s = HybridSearcher(store, embedder, time_decay_half_life_days=0, vector_weight=0.7)
+    pipeline = s.build_atlas_pipeline("dark mode", limit=5)
+    inputs = pipeline[0]["$rankFusion"]["input"]["pipelines"]
+    assert set(inputs.keys()) == {"text", "vector"}
+    weights = pipeline[0]["$rankFusion"]["combination"]["weights"]
+    assert weights["vector"] == pytest.approx(0.7)
+    assert weights["text"] == pytest.approx(0.3)
+    vector_stage = inputs["vector"][0]["$vectorSearch"]
+    assert vector_stage["queryVector"] == [1.0, 0.0, 0.0]
+    assert vector_stage["index"] == "hermes_memory_vector"
+    assert vector_stage["filter"]["tenant_id"] == "t1"
+
+
+def test_build_atlas_pipeline_applies_filters(store):
+    s = HybridSearcher(store, NullEmbeddingClient(), time_decay_half_life_days=0)
+    pipeline = s.build_atlas_pipeline(
+        "topic", category="user_pref", entities=["theme"], min_trust=0.4, limit=3
+    )
+    text_match = pipeline[0]["$rankFusion"]["input"]["pipelines"]["text"][1]["$match"]
+    assert text_match["category"] == "user_pref"
+    assert text_match["entities"] == {"$in": ["theme"]}
+    assert text_match["trust"] == {"$gte": 0.4}
+
+
+def test_build_atlas_pipeline_includes_decay_stage_when_half_life_set(store):
+    s = HybridSearcher(store, NullEmbeddingClient(), time_decay_half_life_days=30)
+    pipeline = s.build_atlas_pipeline("topic")
+    decay = pipeline[1]["$addFields"]["score"]
+    # When half-life > 0 we apply $multiply (not the no-op $ifNull-only stage).
+    assert "$multiply" in decay
+
+
+def test_build_atlas_pipeline_skips_decay_when_disabled(store):
+    s = HybridSearcher(store, NullEmbeddingClient(), time_decay_half_life_days=0)
+    pipeline = s.build_atlas_pipeline("topic")
+    decay = pipeline[1]["$addFields"]["score"]
+    assert "$multiply" not in decay
+    assert "$ifNull" in decay
+
+
+def test_build_atlas_pipeline_skips_vector_when_embed_fails(store):
+    class BoomEmbedder:
+        name = "boom"
+        model = "boom"
+        dim = 3
+
+        def embed(self, text):
+            raise RuntimeError("upstream down")
+
+        def embed_many(self, texts):
+            return [[] for _ in texts]
+
+    s = HybridSearcher(store, BoomEmbedder(), time_decay_half_life_days=0)
+    pipeline = s.build_atlas_pipeline("topic")
+    inputs = pipeline[0]["$rankFusion"]["input"]["pipelines"]
+    # Embedding failure must drop the vector pipeline cleanly, leaving text intact.
+    assert set(inputs.keys()) == {"text"}
+
+
+def test_search_atlas_executes_built_pipeline(store, monkeypatch):
+    """search_atlas must hand build_atlas_pipeline's output to aggregate()."""
+    s = HybridSearcher(store, NullEmbeddingClient(), prefer_atlas=True, time_decay_half_life_days=0)
+
+    captured = {}
+
+    def fake_aggregate(pipeline):
+        captured["pipeline"] = list(pipeline)
+        return iter([{"_id": "x", "content": "stub", "score": 1.0}])
+
+    monkeypatch.setattr(store.memories, "aggregate", fake_aggregate)
+    out = s.search_atlas("hello", category=None, entities=[], min_trust=0.0, limit=5)
+    assert out == [{"_id": "x", "content": "stub", "score": 1.0}]
+    assert "$rankFusion" in captured["pipeline"][0]
+
+
 def test_rrf_merge_combines_text_and_vector_results(store):
     embedder = StubEmbedder(
         {
