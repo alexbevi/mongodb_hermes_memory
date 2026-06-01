@@ -236,6 +236,61 @@ def test_search_atlas_executes_built_pipeline(store, monkeypatch):
     assert "$rankFusion" in captured["pipeline"][0]
 
 
+def test_portable_search_handles_embed_failure_gracefully(store):
+    """If the embedder crashes during query, fall back to text-only results."""
+    class FailingEmbedder:
+        name = "fail"
+        model = "fail"
+        dim = 3
+
+        def embed(self, text):
+            raise RuntimeError("api down")
+
+        def embed_many(self, texts):
+            raise RuntimeError("api down")
+
+    store.add_memory("dark mode is great", category="user_pref")
+    s = HybridSearcher(store, FailingEmbedder(), time_decay_half_life_days=0)
+    hits = s.search("dark mode")
+    assert len(hits) == 1  # text path still works
+
+
+def test_atlas_path_skips_vector_when_query_embedding_returns_empty(store):
+    """An embedder that returns [] (e.g. silent failure) should skip the vector pipeline."""
+    class EmptyEmbedder:
+        name = "empty"
+        model = "empty"
+        dim = 3
+
+        def embed(self, text):
+            return []
+
+        def embed_many(self, texts):
+            return [[] for _ in texts]
+
+    s = HybridSearcher(store, EmptyEmbedder(), time_decay_half_life_days=0)
+    pipeline = s.build_atlas_pipeline("hello")
+    inputs = pipeline[0]["$rankFusion"]["input"]["pipelines"]
+    assert "vector" not in inputs  # cleanly omitted
+
+
+def test_search_handles_zero_limit(store):
+    """limit=0 should return [] cleanly, not raise."""
+    store.add_memory("anything", category="fact")
+    s = HybridSearcher(store, NullEmbeddingClient(), time_decay_half_life_days=0)
+    hits = s.search("anything", limit=0)
+    assert hits == []
+
+
+def test_search_normalizes_entity_filter(store):
+    """Entity filters should normalize before query (Dark-Mode == dark mode)."""
+    store.add_memory("uses dark mode", category="fact", entities=["theme"])
+    s = HybridSearcher(store, NullEmbeddingClient(), time_decay_half_life_days=0)
+    # Pass a raw entity that gets normalized.
+    hits = s.search("dark mode", entities=["Theme"])
+    assert len(hits) == 1
+
+
 def test_rrf_merge_combines_text_and_vector_results(store):
     embedder = StubEmbedder(
         {

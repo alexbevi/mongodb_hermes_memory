@@ -268,6 +268,85 @@ def test_post_setup_returns_error_when_no_uri(tmp_path):
     assert out["ok"] is False
 
 
+def test_post_setup_returns_error_when_mongoclient_throws(tmp_path):
+    """Connectivity check failure surfaces as ok=False with reason."""
+    cfg = {"connection_uri": "mongodb://stub", "database": "x", "embedding_provider": "none"}
+
+    def boom(*_, **__):
+        raise ConnectionError("cluster unreachable")
+
+    with patch("pymongo.MongoClient", side_effect=boom):
+        p = MongoDBMemoryProvider(config=cfg)
+        out = p.post_setup(str(tmp_path), config=cfg)
+    assert out["ok"] is False
+    assert "unreachable" in out["reason"]
+
+
+def test_on_pre_compress_returns_empty_when_store_uninitialized():
+    """Before initialize, on_pre_compress must not raise — returns ''."""
+    p = MongoDBMemoryProvider({"connection_uri": "mongodb://stub"})
+    assert p.on_pre_compress([{"role": "user", "content": "x"}]) == ""
+
+
+def test_on_pre_compress_swallows_store_exceptions(provider):
+    """If list_memories blows up, on_pre_compress returns '' rather than raising."""
+    def boom(*_, **__):
+        raise RuntimeError("mongo down")
+
+    with patch.object(provider._store, "list_memories", side_effect=boom):
+        out = provider.on_pre_compress([])
+    assert out == ""
+
+
+def test_on_session_end_with_zero_messages_is_noop(provider):
+    """Empty conversation must not call the extractor."""
+    provider._config["auto_extract"] = True
+    provider.on_session_end([])
+    assert provider._store.count_memories() == 0
+
+
+def test_sync_turn_skipped_with_no_store():
+    """Pre-init sync_turn must not raise."""
+    p = MongoDBMemoryProvider({"connection_uri": "mongodb://stub"})
+    # No initialize() yet — _store is None.
+    p.sync_turn("u", "a", session_id="s")
+    # No exception, no thread started.
+    assert p._sync_thread is None
+
+
+def test_handle_tool_call_routes_to_dispatcher_when_initialized(provider):
+    """Sanity: post-init the dispatcher actually dispatches."""
+    import json
+    res = json.loads(provider.handle_tool_call("mongo_remember", {"content": "x"}))
+    assert "status" in res or "error" in res
+
+
+def test_circuit_breaker_resets_after_cooldown(provider):
+    """After the cooldown window passes, the breaker auto-closes."""
+    for _ in range(10):
+        provider._record_failure()
+    assert provider._is_breaker_open() is True
+    # Simulate cooldown elapsing.
+    provider._breaker_opened_at = time.time() - 200  # > 120s cooldown
+    assert provider._is_breaker_open() is False
+
+
+def test_on_memory_write_ignores_empty_content(provider):
+    """Empty content shouldn't create a memory mirror."""
+    provider.on_memory_write("add", "user", "", metadata=None)
+    assert provider._store.count_memories() == 0
+
+
+def test_on_memory_write_handles_store_exception(provider):
+    """add_memory failure must be swallowed, not propagated."""
+    def boom(*_, **__):
+        raise RuntimeError("write failed")
+
+    with patch.object(provider._store, "add_memory", side_effect=boom):
+        # Should not raise
+        provider.on_memory_write("add", "user", "test content")
+
+
 def test_tenant_derivation_per_workspace(mongo_db):
     fake = FakeClient(mongo_db)
     cfg = {

@@ -121,6 +121,40 @@ def test_parse_payload_handles_non_json_input():
     assert _parse_llm_payload("") == []
 
 
+def test_parse_payload_skips_non_dict_items():
+    """A list with mixed types should drop the non-dict entries."""
+    raw = '[{"content": "ok", "category": "fact"}, "string", 42, null]'
+    out = _parse_llm_payload(raw)
+    assert len(out) == 1
+    assert out[0].content == "ok"
+
+
+def test_parse_payload_handles_non_list_entities_field():
+    """If 'entities' is a string (not list), default to []."""
+    raw = '[{"content": "x", "category": "fact", "entities": "not-a-list"}]'
+    out = _parse_llm_payload(raw)
+    assert out[0].entities == []
+
+
+def test_parse_payload_caps_entity_count():
+    """Should cap entities at 10 to avoid blowup."""
+    ents = '","'.join(f"e{i}" for i in range(20))
+    raw = f'[{{"content": "x", "category": "fact", "entities": ["{ents}"]}}]'
+    out = _parse_llm_payload(raw)
+    assert len(out[0].entities) <= 10
+
+
+def test_regex_extractor_handles_non_string_content():
+    """Messages with non-string content (e.g. tool calls) should be skipped, not crash."""
+    msgs = [
+        {"role": "user", "content": [{"type": "image", "url": "..."}]},  # multimodal-style
+        {"role": "user", "content": None},
+        {"role": "user", "content": "I prefer terse responses now."},
+    ]
+    out = RegexExtractor().extract(msgs)
+    assert len(out) == 1
+
+
 def test_parse_payload_truncates_long_content():
     long = "a" * 2000
     raw = '[{"content": "' + long + '", "category": "fact"}]'

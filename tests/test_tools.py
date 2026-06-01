@@ -176,6 +176,57 @@ def test_handle_with_non_mapping_args_errors(dispatcher):
     assert "error" in res
 
 
+def test_remember_falls_back_when_embedder_raises(store):
+    """If the embedding API fails (rate limit, network), store without vector."""
+    class FailingEmbedder:
+        name = "fail"
+        model = "fail-m"
+        dim = 2
+
+        def embed(self, text):
+            raise RuntimeError("openai rate limit")
+
+        def embed_many(self, texts):
+            raise RuntimeError("openai rate limit")
+
+    searcher = HybridSearcher(store, NullEmbeddingClient(), time_decay_half_life_days=0)
+    d = ToolDispatcher(store, searcher, embedder=FailingEmbedder())
+    res = json.loads(d.handle("mongo_remember", {"content": "still works", "category": "fact"}))
+    assert res["status"] == "stored"
+    assert res["embedded"] is False  # graceful degradation
+    doc = store.memories.find_one({"_id": res["memory_id"]})
+    assert "embedding" not in doc  # no vector stored
+
+
+def test_handle_with_non_dict_args_via_string(dispatcher):
+    """Tool args must be a mapping; bare strings should error cleanly, not crash."""
+    res = json.loads(dispatcher.handle("mongo_search", "oops"))
+    assert "error" in res
+
+
+def test_remember_with_unknown_tool_name(dispatcher):
+    """Calling a non-existent tool returns a clean error envelope."""
+    res = json.loads(dispatcher.handle("mongo_completely_made_up", {"x": 1}))
+    assert "error" in res
+    assert "unknown tool" in res["error"].lower()
+
+
+def test_remember_with_invalid_ttl_type(dispatcher):
+    """ttl_days that can't be coerced to int should error gracefully."""
+    res = json.loads(
+        dispatcher.handle("mongo_remember", {"content": "x", "ttl_days": "not-a-number"})
+    )
+    assert "error" in res
+
+
+def test_search_with_invalid_min_trust_type(dispatcher, store):
+    """min_trust that can't be coerced to float should error gracefully."""
+    res = json.loads(
+        dispatcher.handle("mongo_search", {"query": "x", "min_trust": "high"})
+    )
+    assert "error" in res
+
+
 def test_remember_uses_embedder_when_present(store):
     class StubEmb:
         name = "stub"

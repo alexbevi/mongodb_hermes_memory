@@ -140,6 +140,40 @@ def test_make_embedding_client_routes_to_voyage(monkeypatch):
     assert isinstance(c, embeddings.VoyageEmbeddingClient)
 
 
+def test_make_embedding_client_falls_back_when_sdk_missing(monkeypatch):
+    """If openai isn't installed, fall back to null instead of crashing the plugin."""
+    import sys
+
+    # Hide the openai module if it's installed.
+    monkeypatch.setitem(sys.modules, "openai", None)
+    c = embeddings.make_embedding_client(
+        {"embedding_provider": "openai", "embedding_api_key": "k", "embedding_dim": 128}
+    )
+    assert isinstance(c, embeddings.NullEmbeddingClient)
+
+
+def test_voyage_client_falls_back_when_sdk_missing(monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "voyageai", None)
+    c = embeddings.make_embedding_client(
+        {"embedding_provider": "voyage", "embedding_api_key": "k", "embedding_dim": 1024}
+    )
+    assert isinstance(c, embeddings.NullEmbeddingClient)
+
+
+def test_provider_case_insensitive(monkeypatch):
+    """`OpenAI` / `Voyage` / `NONE` should all work."""
+    fake_openai = MagicMock()
+    fake_openai.OpenAI.return_value = MagicMock()
+    monkeypatch.setitem(__import__("sys").modules, "openai", fake_openai)
+
+    c = embeddings.make_embedding_client(
+        {"embedding_provider": "OPENAI", "embedding_api_key": "k", "embedding_dim": 128}
+    )
+    assert isinstance(c, embeddings.OpenAIEmbeddingClient)
+
+
 def test_embed_many_with_empty_input_returns_empty_list(monkeypatch):
     fake_openai = MagicMock()
     fake_client = MagicMock()

@@ -219,6 +219,70 @@ def test_time_decay_weight_zero_half_life_returns_one(store):
     assert store.time_decay_weight(now, 0) == 1.0
 
 
+def test_count_memories_returns_zero_on_pymongo_error(store):
+    """Flaky cluster shouldn't crash count_memories — it returns 0."""
+    from pymongo.errors import ConnectionFailure
+
+    def boom(*_, **__):
+        raise ConnectionFailure("no replica set primary")
+
+    from unittest.mock import patch
+    with patch.object(store.memories, "count_documents", side_effect=boom):
+        assert store.count_memories() == 0
+
+
+def test_add_memory_dedupes_duplicate_entities(store):
+    """Duplicate entity strings (case/whitespace variants) should dedupe."""
+    mid = store.add_memory(
+        "x", category="fact",
+        entities=["Theme", "theme", "  Theme  ", "THEME"],
+    )
+    doc = store.memories.find_one({"_id": mid})
+    assert doc["entities"] == ["theme"]
+
+
+def test_add_memory_filters_empty_entities_and_tags(store):
+    """Empty/whitespace-only strings should be dropped from entities and tags."""
+    mid = store.add_memory(
+        "x", category="fact",
+        entities=["", "  ", "real"],
+        tags=["", "valid", "  "],
+    )
+    doc = store.memories.find_one({"_id": mid})
+    assert doc["entities"] == ["real"]
+    assert doc["tags"] == ["valid"]
+
+
+def test_add_memory_with_negative_ttl_does_not_set_expires(store):
+    """Negative TTL is treated like 0 (never expire)."""
+    mid = store.add_memory("forever", category="fact", ttl_days=-5)
+    doc = store.memories.find_one({"_id": mid})
+    assert "expires_at" not in doc
+
+
+def test_record_feedback_clamps_at_zero(store):
+    """Sustained negative feedback bottoms out at 0.0."""
+    mid = store.add_memory("hated", category="fact")
+    for _ in range(50):
+        store.record_feedback(mid, helpful=False)
+    doc = store.memories.find_one({"_id": mid})
+    assert doc["trust"] == 0.0
+
+
+def test_related_memories_returns_empty_for_no_seed_entities(store):
+    """No seed entities → no graph traversal."""
+    store.add_memory("x", category="fact", entities=["foo"])
+    assert store.related_memories([]) == []
+    assert store.related_memories(["", "  "]) == []
+
+
+def test_next_turn_idx_handles_gaps_in_history(store):
+    """next_turn_idx should be max+1 even if turns aren't contiguous."""
+    store.append_turn(session_id="s", turn_idx=5, role="user", content="a")
+    store.append_turn(session_id="s", turn_idx=10, role="user", content="b")
+    assert store.next_turn_idx("s") == 11
+
+
 def test_time_decay_weight_decays_over_time(store):
     past = utcnow() - dt.timedelta(days=30)
     weight = store.time_decay_weight(past, half_life_days=30)
