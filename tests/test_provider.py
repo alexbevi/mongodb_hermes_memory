@@ -52,6 +52,50 @@ def test_name_is_mongodb():
     assert MongoDBMemoryProvider({}).name == "mongodb"
 
 
+def test_initialize_passes_driver_info_to_mongoclient(mongo_db):
+    """MongoClient construction must include driver=DriverInfo for telemetry."""
+    from pymongo.driver_info import DriverInfo
+
+    fake = FakeClient(mongo_db)
+    captured: dict = {}
+
+    def fake_ctor(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return fake
+
+    cfg = {
+        "connection_uri": "mongodb://stub",
+        "database": "x",
+        "embedding_provider": "none",
+        "tenant_scope": "global",
+    }
+    with patch("pymongo.MongoClient", side_effect=fake_ctor):
+        p = MongoDBMemoryProvider(config=cfg)
+        p.initialize("s1")
+        try:
+            assert "driver" in captured["kwargs"], "driver kwarg not passed to MongoClient"
+            di = captured["kwargs"]["driver"]
+            assert isinstance(di, DriverInfo)
+            assert di.name == "Hermes-MongoDB-Memory"
+            # version is best-effort: present when the package is installed,
+            # may be None in editable / source-only contexts.
+            assert di.version is None or isinstance(di.version, str)
+        finally:
+            p.shutdown()
+
+
+def test_driver_info_module_constant_resolves():
+    """The module-level _DRIVER_INFO is built once and exposed for reuse."""
+    from pymongo.driver_info import DriverInfo
+
+    from hermes_mongodb_memory.provider import _DRIVER_INFO
+
+    assert _DRIVER_INFO is None or isinstance(_DRIVER_INFO, DriverInfo)
+    if _DRIVER_INFO is not None:
+        assert _DRIVER_INFO.name == "Hermes-MongoDB-Memory"
+
+
 def test_is_available_requires_uri():
     p = MongoDBMemoryProvider({"connection_uri": ""})
     assert p.is_available() is False

@@ -1,5 +1,5 @@
 name: mongodb
-version: 0.1.1
+version: 0.1.2
 description: "MongoDB memory provider — hybrid search ($rankFusion), TTL-driven forgetting, entity graph traversal, and time-decay relevance in a single backend (self-hosted or Atlas)."
 hooks:
   - on_session_end

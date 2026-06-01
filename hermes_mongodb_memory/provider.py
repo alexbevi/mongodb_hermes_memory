@@ -26,6 +26,33 @@ from .tools import ToolDispatcher
 logger = logging.getLogger(__name__)
 
 
+def _resolve_driver_info() -> Any:
+    """Build a PyMongo ``DriverInfo`` for handshake attribution.
+
+    Surfaces this plugin in MongoDB's server-side telemetry so deployment
+    operators can see traffic from ``Hermes-MongoDB-Memory`` distinctly
+    from generic PyMongo or other wrappers. Returns ``None`` if either
+    PyMongo's DriverInfo or the package version isn't importable, so a
+    handshake annotation never blocks the connection.
+    """
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        from pymongo.driver_info import DriverInfo
+    except ImportError:
+        return None
+
+    try:
+        pkg_version = version("hermes-mongodb-memory")
+    except PackageNotFoundError:
+        pkg_version = None
+
+    return DriverInfo(name="Hermes-MongoDB-Memory", version=pkg_version)
+
+
+_DRIVER_INFO = _resolve_driver_info()
+
+
 # Circuit breaker tuning: matches the mem0 plugin so behaviour is consistent
 # across the ecosystem.
 _BREAKER_THRESHOLD = 5
@@ -159,7 +186,12 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
         from pymongo import MongoClient  # imported here so tests can patch
 
         uri = config["connection_uri"]
-        client = MongoClient(uri, serverSelectionTimeoutMS=int(config.get("server_selection_timeout_ms", 3000)))
+        client_kwargs: dict[str, Any] = {
+            "serverSelectionTimeoutMS": int(config.get("server_selection_timeout_ms", 3000)),
+        }
+        if _DRIVER_INFO is not None:
+            client_kwargs["driver"] = _DRIVER_INFO
+        client = MongoClient(uri, **client_kwargs)
         self._client = client
         self._db = client[config.get("database", "hermes_memory")]
         self._store = MongoStore(self._db, tenant_id=self._tenant_id)

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from .provider import MongoDBMemoryProvider as MongoDBMemoryProvider
 
 __all__ = ["MongoDBMemoryProvider", "register"]
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 
 def _resolve_provider_class() -> type:

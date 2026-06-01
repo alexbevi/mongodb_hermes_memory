@@ -240,6 +240,10 @@ flowchart TB
 
 Background daemon threads handle `prefetch` and `sync_turn` so a flaky cluster never blocks the conversation. A 5-failure / 120-second circuit breaker pauses Mongo writes when something is wrong upstream.
 
+## Telemetry
+
+The plugin attaches `DriverInfo(name="Hermes-MongoDB-Memory", version=<pkg-version>)` to every MongoDB connection it opens. This appears in the server handshake and lets cluster operators distinguish traffic from this plugin in MongoDB's server-side metrics — no PII or query content is included. There is no opt-out short of patching `provider._DRIVER_INFO`; if that's a problem for your deployment, open an issue.
+
 ## Releasing
 
 Publishing is scripted in `scripts/publish.sh`:
