@@ -248,12 +248,21 @@ Publishing is scripted in `scripts/publish.sh`:
 scripts/publish.sh build     # build sdist + wheel only (dry run)
 scripts/publish.sh test      # build, lint, test, upload to TestPyPI
 scripts/publish.sh prod      # same, upload to PyPI, tag v<version>
+scripts/publish.sh gh        # push tag and create GitHub release with notes
 ```
 
-The script enforces a clean working tree, asserts that `pyproject.toml` and
-`hermes_mongodb_memory/__init__.py` agree on the version, runs ruff + pytest,
-calls `python -m build`, and uses `twine` to upload. Configure credentials in
-`~/.pypirc` or via `TWINE_USERNAME=__token__` / `TWINE_PASSWORD=pypi-...`.
+The PyPI targets enforce a clean working tree, assert that `pyproject.toml`
+and `hermes_mongodb_memory/__init__.py` agree on the version, run ruff +
+pytest, call `python -m build`, and use `twine` to upload. Configure
+credentials in `~/.pypirc` or via `TWINE_USERNAME=__token__` /
+`TWINE_PASSWORD=pypi-...`.
+
+The `gh` target reads the version, ensures the `v<version>` tag exists
+locally and on `origin`, then calls `gh release create` with auto-generated
+notes (install snippet, highlights derived from `feat:` / `fix:` commit
+subjects since the previous tag, and a compare link). Idempotent — re-runs
+detect existing tags and releases and skip safely. Requires `gh` to be
+authenticated (`gh auth login`).
 
 ## Contributing
 
