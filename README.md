@@ -2,7 +2,7 @@
 
 Hybrid search, time-decay relevance, TTL-driven forgetting, and entity graph traversal — served from a single MongoDB cluster (self-hosted or Atlas free tier).
 
-[![CI](https://github.com/alexbevi/hermes-mongodb-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/alexbevi/hermes-mongodb-memory/actions/workflows/ci.yml)
+[![CI](https://github.com/alexbevi/mongodb_hermes_memory/actions/workflows/ci.yml/badge.svg)](https://github.com/alexbevi/mongodb_hermes_memory/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Why MongoDB?
@@ -64,8 +64,8 @@ hermes mongodb init-indexes
 ### Path 3 — Local development
 
 ```bash
-git clone https://github.com/alexbevi/hermes-mongodb-memory.git
-cd hermes-mongodb-memory
+git clone https://github.com/alexbevi/mongodb_hermes_memory.git
+cd mongodb_hermes_memory
 pip install -e ".[dev,all]"
 # Hermes auto-discovers plugins in ~/.hermes/plugins/<name>/
 ln -s "$(pwd)/hermes_mongodb_memory" ~/.hermes/plugins/mongodb
@@ -234,6 +234,21 @@ flowchart TB
 ```
 
 Background daemon threads handle `prefetch` and `sync_turn` so a flaky cluster never blocks the conversation. A 5-failure / 120-second circuit breaker pauses Mongo writes when something is wrong upstream.
+
+## Releasing
+
+Publishing is scripted in `scripts/publish.sh`:
+
+```bash
+scripts/publish.sh build     # build sdist + wheel only (dry run)
+scripts/publish.sh test      # build, lint, test, upload to TestPyPI
+scripts/publish.sh prod      # same, upload to PyPI, tag v<version>
+```
+
+The script enforces a clean working tree, asserts that `pyproject.toml` and
+`hermes_mongodb_memory/__init__.py` agree on the version, runs ruff + pytest,
+calls `python -m build`, and uses `twine` to upload. Configure credentials in
+`~/.pypirc` or via `TWINE_USERNAME=__token__` / `TWINE_PASSWORD=pypi-...`.
 
 ## Contributing
 
