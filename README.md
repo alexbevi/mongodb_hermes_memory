@@ -165,6 +165,11 @@ docker compose up -d
 export MONGODB_TEST_URI="mongodb://localhost:27017"
 pytest tests/test_integration.py -v -m integration
 
+# Conformance tests against the real Hermes Agent ABC and loader
+# (requires Python 3.11+ for hermes-agent)
+pip install -e ".[dev,hermes]"
+pytest tests/test_hermes_conformance.py -v -m hermes
+
 # Lint
 ruff check .
 ```

@@ -66,16 +66,19 @@ def test_pyproject_declares_entry_point():
     assert "hermes_mongodb_memory:register" in text
 
 
-def test_provider_subclass_is_findable_via_module_scan():
-    """Hermes' fallback path scans dir(module) for MemoryProvider subclasses."""
+def test_provider_class_reachable_via_attribute_access():
+    """``hermes_mongodb_memory.MongoDBMemoryProvider`` resolves through __getattr__.
+
+    Hermes' loader prefers register(ctx) (which we provide), so the fallback
+    that scans dir(module) for MemoryProvider subclasses is only used when
+    register() is absent. We use lazy attribute access in __init__.py to
+    work around the user-plugin loader's sibling pre-import quirk.
+    """
     import hermes_mongodb_memory as pkg
 
-    classes = [getattr(pkg, name) for name in dir(pkg)]
-    matches = [
-        c for c in classes
-        if isinstance(c, type) and c.__name__ == "MongoDBMemoryProvider"
-    ]
-    assert len(matches) == 1
+    cls = pkg.MongoDBMemoryProvider
+    assert isinstance(cls, type)
+    assert cls.__name__ == "MongoDBMemoryProvider"
 
 
 @pytest.mark.parametrize(
