@@ -171,34 +171,66 @@ ruff check .
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                  Hermes Agent (host)                      │
-│                                                           │
-│   register(ctx) ─→ MongoDBMemoryProvider                  │
-│                                                           │
-│   prefetch ──┬─→ HybridSearcher ──→ EmbeddingClient       │
-│              │                          │                 │
-│              │                          └─→ openai/voyage │
-│              │                                            │
-│   sync_turn ─┴─→ MongoStore ──→ memories / turns /        │
-│                                  profiles / entities      │
-│                                                           │
-│   tools (6) ────→ ToolDispatcher ──→ store + searcher     │
-│                                                           │
-│   on_session_end ─→ RegexExtractor + (LLMExtractor)       │
-└──────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                   ┌──────────────────────┐
-                   │   MongoDB / Atlas    │
-                   │                      │
-                   │  $rankFusion         │
-                   │  $vectorSearch       │
-                   │  $search (BM25)      │
-                   │  $graphLookup        │
-                   │  TTL indexes         │
-                   └──────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Hermes["Hermes Agent (host)"]
+        Register["register(ctx)"]
+        Provider["MongoDBMemoryProvider"]
+        Prefetch["prefetch / queue_prefetch"]
+        SyncTurn["sync_turn"]
+        Tools["tools (6)"]
+        SessionEnd["on_session_end"]
+
+        Searcher["HybridSearcher"]
+        Embedder["EmbeddingClient<br/>(openai / voyage / none)"]
+        Store["MongoStore"]
+        Dispatcher["ToolDispatcher"]
+        Regex["RegexExtractor"]
+        LLM["LLMExtractor (optional)"]
+
+        Register --> Provider
+        Provider --> Prefetch
+        Provider --> SyncTurn
+        Provider --> Tools
+        Provider --> SessionEnd
+
+        Prefetch --> Searcher
+        Searcher --> Embedder
+        SyncTurn --> Store
+        Tools --> Dispatcher
+        Dispatcher --> Store
+        Dispatcher --> Searcher
+        SessionEnd --> Regex
+        SessionEnd --> LLM
+        Regex --> Store
+        LLM --> Store
+    end
+
+    subgraph Mongo["MongoDB / Atlas"]
+        Memories[("memories")]
+        Turns[("turns")]
+        Profiles[("profiles")]
+        Entities[("entities")]
+
+        RankFusion["$rankFusion<br/>$vectorSearch + $search (BM25)"]
+        GraphLookup["$graphLookup<br/>(entity traversal)"]
+        TTL["TTL indexes<br/>(automatic forgetting)"]
+    end
+
+    Searcher -.->|aggregation| RankFusion
+    Store -.->|CRUD + indexes| Memories
+    Store -.-> Turns
+    Store -.-> Profiles
+    Store -.-> Entities
+    Dispatcher -.->|mongo_recall| GraphLookup
+    Memories -.- TTL
+
+    classDef host fill:#f5f5f5,stroke:#444,color:#222;
+    classDef store fill:#e6f4ea,stroke:#2e7d32,color:#1b5e20;
+    classDef op fill:#fff3e0,stroke:#ef6c00,color:#5d4037;
+    class Register,Provider,Prefetch,SyncTurn,Tools,SessionEnd,Searcher,Embedder,Store,Dispatcher,Regex,LLM host;
+    class Memories,Turns,Profiles,Entities store;
+    class RankFusion,GraphLookup,TTL op;
 ```
 
 Background daemon threads handle `prefetch` and `sync_turn` so a flaky cluster never blocks the conversation. A 5-failure / 120-second circuit breaker pauses Mongo writes when something is wrong upstream.
