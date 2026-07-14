@@ -66,6 +66,13 @@ def test_pyproject_declares_entry_point():
     assert "hermes_mongodb_memory:register" in text
 
 
+def test_pyproject_declares_installer_script():
+    pyproject = PLUGIN_ROOT / "pyproject.toml"
+    text = pyproject.read_text(encoding="utf-8")
+    assert "[project.scripts]" in text
+    assert 'hermes-mongodb-memory = "hermes_mongodb_memory.install:main"' in text
+
+
 def test_provider_class_reachable_via_attribute_access():
     """``hermes_mongodb_memory.MongoDBMemoryProvider`` resolves through __getattr__.
 

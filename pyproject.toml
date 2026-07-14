@@ -52,6 +52,9 @@ Homepage = "https://github.com/alexbevi/mongodb_hermes_memory"
 Issues = "https://github.com/alexbevi/mongodb_hermes_memory/issues"
 "Hermes Agent" = "https://hermes-agent.nousresearch.com"
 
+[project.scripts]
+hermes-mongodb-memory = "hermes_mongodb_memory.install:main"
+
 # Hermes discovers plugins via filesystem scan of plugin directories,
 # but we also publish a hermes.memory_providers entry point so future
 # entry-point-based discovery just works.
