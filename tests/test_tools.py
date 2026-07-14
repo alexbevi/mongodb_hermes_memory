@@ -35,6 +35,14 @@ def test_schemas_module_constant_matches():
     assert "mongo_reflect" in names
 
 
+def test_search_schema_uses_targeted_recall_guidance():
+    schema = next(s for s in ALL_SCHEMAS if s["function"]["name"] == "mongo_search")
+    description = schema["function"]["description"]
+    assert "prior preferences" in description
+    assert "self-contained requests" in description
+    assert "ALWAYS call" not in description
+
+
 def test_remember_stores_memory(dispatcher, store):
     res = json.loads(
         dispatcher.handle(

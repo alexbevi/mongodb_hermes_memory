@@ -86,7 +86,8 @@ SEARCH_SCHEMA = {
         "description": (
             "Hybrid search across MongoDB-backed memories: vector semantic + BM25 "
             "keyword, fused with reciprocal-rank fusion and time-decay scoring. "
-            "ALWAYS call this before answering questions about the user."
+            "Use when prior preferences, decisions, facts, or project history may "
+            "matter; avoid broad recall for self-contained requests."
         ),
         "parameters": {
             "type": "object",

@@ -130,7 +130,10 @@ def test_handle_tool_call_before_initialize_returns_error():
 def test_system_prompt_block_changes_with_count(provider):
     assert "No memories yet" in provider.system_prompt_block()
     provider.handle_tool_call("mongo_remember", {"content": "fact one", "category": "fact"})
-    assert "1 memories" in provider.system_prompt_block()
+    block = provider.system_prompt_block()
+    assert "1 memories" in block
+    assert "prior preferences" in block
+    assert "*before* answering" not in block
 
 
 def test_prefetch_returns_formatted_results(provider):

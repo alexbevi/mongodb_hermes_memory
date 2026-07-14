@@ -241,8 +241,9 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
             )
         return (
             "# MongoDB Memory\n"
-            f"Active. {count} memories stored. Call `mongo_search` *before* answering "
-            "questions about the user; call `mongo_profile` for an overview."
+            f"Active. {count} memories stored. Use `mongo_search` when prior "
+            "preferences, decisions, facts, or project history may matter; use "
+            "`mongo_profile` for an overview."
         )
 
     # ------------------------------------------------------------------ tools
