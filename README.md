@@ -33,17 +33,22 @@ In other words: **vector search, BM25, structured queries, TTL, and graph traver
 
 ```bash
 pip install hermes-mongodb-memory
+hermes-mongodb-memory install
 # Optional vector backends:
 pip install "hermes-mongodb-memory[openai]"
 pip install "hermes-mongodb-memory[voyage]"
 pip install "hermes-mongodb-memory[all]"   # both
 ```
 
+The installer copies the provider into `$HERMES_HOME/plugins/mongodb`, which is the
+directory current Hermes releases scan for community memory providers.
+
 ## Setup
 
 ### Path 1 — Guided (recommended)
 
 ```bash
+hermes-mongodb-memory install
 hermes memory setup        # pick "mongodb" from the provider list
 hermes mongodb init-indexes
 ```
@@ -58,6 +63,7 @@ The wizard prompts for connection URI, database, embedding provider, and tenant 
 ```bash
 hermes config set memory.provider mongodb
 echo 'HERMES_MONGODB_URI="mongodb+srv://USER:PASS@cluster.mongodb.net/?retryWrites=true"' >> ~/.hermes/.env
+hermes-mongodb-memory install
 hermes mongodb init-indexes
 ```
 
@@ -67,10 +73,17 @@ hermes mongodb init-indexes
 git clone https://github.com/alexbevi/mongodb_hermes_memory.git
 cd mongodb_hermes_memory
 pip install -e ".[dev,all]"
-# Hermes auto-discovers plugins in ~/.hermes/plugins/<name>/
-ln -s "$(pwd)/hermes_mongodb_memory" ~/.hermes/plugins/mongodb
+hermes-mongodb-memory install --force
 docker compose up -d                            # local Mongo 7 replica set
 export HERMES_MONGODB_URI="mongodb://localhost:27017/?replicaSet=rs0"
+```
+
+For editable development, replace the copied plugin with a symlink if you want
+Hermes to see source edits without rerunning the installer:
+
+```bash
+rm -rf "${HERMES_HOME:-$HOME/.hermes}/plugins/mongodb"
+ln -s "$(pwd)/hermes_mongodb_memory" "${HERMES_HOME:-$HOME/.hermes}/plugins/mongodb"
 ```
 
 ### Atlas free tier (zero-cost path)
