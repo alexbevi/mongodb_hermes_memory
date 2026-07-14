@@ -42,6 +42,8 @@ pip install "hermes-mongodb-memory[all]"   # both
 
 The installer copies the provider into `$HERMES_HOME/plugins/mongodb`, which is the
 directory current Hermes releases scan for community memory providers.
+The package also publishes `hermes.memory_providers` and `hermes_agent.plugins`
+entry points for compatibility with future entry-point-based loaders.
 
 ## Setup
 

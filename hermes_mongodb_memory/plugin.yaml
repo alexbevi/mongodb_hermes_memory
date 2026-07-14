@@ -1,6 +1,9 @@
 name: mongodb
 version: 0.1.2
 description: "MongoDB memory provider — hybrid search ($rankFusion), TTL-driven forgetting, entity graph traversal, and time-decay relevance in a single backend (self-hosted or Atlas)."
+pip_dependencies:
+  - pymongo>=4.6,<5.0
+  - PyYAML>=6.0,<7.0
 hooks:
   - on_session_end
   - on_session_switch

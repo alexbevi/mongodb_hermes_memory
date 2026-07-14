@@ -56,9 +56,12 @@ Issues = "https://github.com/alexbevi/mongodb_hermes_memory/issues"
 hermes-mongodb-memory = "hermes_mongodb_memory.install:main"
 
 # Hermes discovers plugins via filesystem scan of plugin directories,
-# but we also publish a hermes.memory_providers entry point so future
-# entry-point-based discovery just works.
+# but we also publish entry points so future entry-point-based discovery
+# can find the provider without changing the package.
 [project.entry-points."hermes.memory_providers"]
+mongodb = "hermes_mongodb_memory:register"
+
+[project.entry-points."hermes_agent.plugins"]
 mongodb = "hermes_mongodb_memory:register"
 
 [tool.setuptools]

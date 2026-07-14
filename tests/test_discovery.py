@@ -55,14 +55,16 @@ def test_plugin_yaml_has_required_keys():
     assert data["name"] == "mongodb"
     assert "version" in data
     assert "description" in data
+    assert "pymongo>=4.6,<5.0" in data["pip_dependencies"]
     assert isinstance(data.get("hooks", []), list)
 
 
-def test_pyproject_declares_entry_point():
-    """We also expose the provider as a hermes.memory_providers entry point."""
+def test_pyproject_declares_entry_points():
+    """We expose provider entry points for future Hermes discovery paths."""
     pyproject = PLUGIN_ROOT / "pyproject.toml"
     text = pyproject.read_text(encoding="utf-8")
     assert "hermes.memory_providers" in text
+    assert "hermes_agent.plugins" in text
     assert "hermes_mongodb_memory:register" in text
 
 
