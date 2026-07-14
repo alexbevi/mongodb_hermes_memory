@@ -7,6 +7,7 @@ any version of Hermes that follows the contract.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -66,6 +67,19 @@ def test_pyproject_declares_entry_points():
     assert "hermes.memory_providers" in text
     assert "hermes_agent.plugins" in text
     assert "hermes_mongodb_memory:register" in text
+
+
+def test_version_fields_match():
+    import hermes_mongodb_memory
+
+    pyproject = PLUGIN_ROOT / "pyproject.toml"
+    text = pyproject.read_text(encoding="utf-8")
+    pyproject_version = re.search(r'^version = "([^"]+)"', text, re.MULTILINE)
+    assert pyproject_version is not None
+
+    data = yaml.safe_load(PLUGIN_YAML.read_text(encoding="utf-8"))
+    assert pyproject_version.group(1) == hermes_mongodb_memory.__version__
+    assert str(data["version"]) == hermes_mongodb_memory.__version__
 
 
 def test_pyproject_declares_installer_script():

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hermes-mongodb-memory"
-version = "0.1.2"
+version = "0.2.0"
 description = "MongoDB memory provider plugin for Hermes Agent — hybrid search, time-decay, TTL forgetting, and entity graph traversal in a single backend."
 readme = "README.md"
 requires-python = ">=3.10"
