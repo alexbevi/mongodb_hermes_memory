@@ -290,6 +290,7 @@ class MongoStore:
         role: str,
         content: str,
         ttl_days: int = 0,
+        metadata: Mapping[str, Any] | None = None,
     ) -> None:
         if not content:
             return
@@ -303,6 +304,8 @@ class MongoStore:
             "content": content,
             "created_at": now,
         }
+        if metadata:
+            doc["metadata"] = dict(metadata)
         if ttl_days > 0:
             doc["expires_at"] = now + dt.timedelta(days=ttl_days)
         self.turns.insert_one(doc)

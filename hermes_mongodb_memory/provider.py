@@ -9,6 +9,7 @@ fast and pure.
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
@@ -57,6 +58,110 @@ _DRIVER_INFO = _resolve_driver_info()
 # across the ecosystem.
 _BREAKER_THRESHOLD = 5
 _BREAKER_COOLDOWN_SECONDS = 120
+
+
+def _content_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _parse_tool_args(arguments: Any) -> dict[str, Any]:
+    if isinstance(arguments, dict):
+        return arguments
+    if isinstance(arguments, str):
+        try:
+            parsed = json.loads(arguments)
+        except json.JSONDecodeError:
+            return {"_raw": arguments}
+        if isinstance(parsed, dict):
+            return parsed
+        return {"value": parsed}
+    if arguments is None:
+        return {}
+    return {"value": arguments}
+
+
+def _current_turn_messages(
+    messages: list[dict[str, Any]] | None,
+    *,
+    user_content: str,
+    assistant_content: str,
+) -> list[dict[str, Any]]:
+    """Return the completed turn from Hermes' full conversation history."""
+    if not messages:
+        return []
+
+    final_idx: int | None = None
+    for idx in range(len(messages) - 1, -1, -1):
+        message = messages[idx]
+        if not isinstance(message, dict) or message.get("role") != "assistant":
+            continue
+        if _content_text(message.get("content")) == _content_text(assistant_content):
+            final_idx = idx
+            break
+    if final_idx is None:
+        final_idx = len(messages) - 1
+
+    start_idx = 0
+    for idx in range(final_idx - 1, -1, -1):
+        message = messages[idx]
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        start_idx = idx
+        if _content_text(message.get("content")) == _content_text(user_content):
+            break
+
+    return messages[start_idx : final_idx + 1]
+
+
+def _derive_tool_trace(
+    messages: list[dict[str, Any]] | None,
+    *,
+    user_content: str,
+    assistant_content: str,
+) -> list[dict[str, Any]]:
+    """Build compact tool call/result metadata for the current completed turn."""
+    current_turn = _current_turn_messages(
+        messages,
+        user_content=user_content,
+        assistant_content=assistant_content,
+    )
+    if not current_turn:
+        return []
+
+    tools: list[dict[str, Any]] = []
+    tools_by_id: dict[str, dict[str, Any]] = {}
+
+    for message in current_turn:
+        if not isinstance(message, dict):
+            continue
+
+        if message.get("role") == "assistant":
+            for tool_call in message.get("tool_calls") or []:
+                if not isinstance(tool_call, dict):
+                    continue
+                function = tool_call.get("function") or {}
+                if not isinstance(function, dict):
+                    function = {}
+                tool_call_id = str(tool_call.get("id") or "")
+                item = {
+                    "name": str(function.get("name") or ""),
+                    "args": _parse_tool_args(function.get("arguments")),
+                    "result": None,
+                }
+                tools.append(item)
+                if tool_call_id:
+                    tools_by_id[tool_call_id] = item
+
+        elif message.get("role") == "tool":
+            tool_call_id = str(message.get("tool_call_id") or "")
+            if tool_call_id and tool_call_id in tools_by_id:
+                tools_by_id[tool_call_id]["result"] = message.get("content")
+
+    return tools
 
 
 def _resolve_base() -> type:
@@ -316,6 +421,11 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
 
         sid = session_id or self._session_id
         ttl_days = int(self._config.get("turn_ttl_days", 30))
+        tools = _derive_tool_trace(
+            messages,
+            user_content=user_content,
+            assistant_content=assistant_content,
+        )
 
         def _do_sync() -> None:
             try:
@@ -330,6 +440,7 @@ class MongoDBMemoryProvider(_MemoryProvider):  # type: ignore[misc, valid-type]
                         self._store.append_turn(
                             session_id=sid, turn_idx=idx + 1, role="assistant",
                             content=assistant_content, ttl_days=ttl_days,
+                            metadata={"tools": tools} if tools else None,
                         )
                 self._record_success()
             except Exception as exc:

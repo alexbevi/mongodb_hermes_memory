@@ -176,6 +176,19 @@ def test_append_turn_writes_with_ttl(store):
     assert "expires_at" in doc
 
 
+def test_append_turn_writes_metadata(store):
+    store.append_turn(
+        session_id="s1",
+        turn_idx=1,
+        role="assistant",
+        content="done",
+        metadata={"tools": [{"name": "mongo_search"}]},
+    )
+
+    doc = store.turns.find_one({"session_id": "s1", "turn_idx": 1})
+    assert doc["metadata"]["tools"][0]["name"] == "mongo_search"
+
+
 def test_append_turn_skips_empty_content(store):
     store.append_turn(session_id="s1", turn_idx=1, role="user", content="")
     assert store.turns.count_documents({}) == 0

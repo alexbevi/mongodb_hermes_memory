@@ -169,6 +169,46 @@ def test_sync_turn_writes_turns_async(provider):
     assert roles == ["assistant", "user"]
 
 
+def test_sync_turn_captures_tool_trace_metadata(provider):
+    messages = [
+        {"role": "user", "content": "Find prior theme preference"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "call-1",
+                    "function": {
+                        "name": "mongo_search",
+                        "arguments": '{"query": "theme preference"}',
+                    },
+                }
+            ],
+        },
+        {"role": "tool", "tool_call_id": "call-1", "content": '{"count": 1}'},
+        {"role": "assistant", "content": "You prefer dark mode."},
+    ]
+
+    provider.sync_turn(
+        "Find prior theme preference",
+        "You prefer dark mode.",
+        session_id="s",
+        messages=messages,
+    )
+    if provider._sync_thread:
+        provider._sync_thread.join(timeout=2.0)
+
+    assistant_doc = provider._store.turns.find_one({"session_id": "s", "role": "assistant"})
+    tools = assistant_doc["metadata"]["tools"]
+    assert tools == [
+        {
+            "name": "mongo_search",
+            "args": {"query": "theme preference"},
+            "result": '{"count": 1}',
+        }
+    ]
+
+
 def test_sync_turn_skips_when_breaker_open(provider):
     provider._failures = 10
     provider._breaker_opened_at = time.time()

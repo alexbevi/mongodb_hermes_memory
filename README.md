@@ -254,6 +254,8 @@ flowchart TB
 ```
 
 Background daemon threads handle `prefetch` and `sync_turn` so a flaky cluster never blocks the conversation. A 5-failure / 120-second circuit breaker pauses Mongo writes when something is wrong upstream.
+When Hermes passes full message history, `sync_turn` also stores compact tool
+trace metadata on the assistant turn: tool name, parsed arguments, and result.
 
 ## Telemetry
 
